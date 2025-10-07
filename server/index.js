@@ -219,6 +219,26 @@ const authenticateToken = (req, res, next) => {
 
 // Routes
 
+// Ping endpoint per mantenere il servizio attivo su Render
+app.get('/ping', (req, res) => {
+  const timestamp = new Date().toISOString();
+  console.log(`🏓 Ping ricevuto alle ${timestamp}`);
+  res.status(200).json({ 
+    status: 'alive', 
+    timestamp: timestamp,
+    message: 'Server is running' 
+  });
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'healthy',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Login
 app.post('/api/login', (req, res) => {
   const { email, password } = req.body;
@@ -1328,6 +1348,57 @@ server.listen(PORT, () => {
   console.log(`🚀 Server avviato su porta ${PORT}`);
   console.log(`📊 Dashboard: http://localhost:3000`);
   console.log(`🔧 API: http://localhost:${PORT}/api`);
+  
+  // Sistema di auto-ping per mantenere il servizio attivo su Render
+  if (process.env.NODE_ENV === 'production' && process.env.RENDER === 'true') {
+    const RENDER_URL = process.env.RENDER_EXTERNAL_URL || `https://motta-carrozzeria.onrender.com`;
+    const PING_INTERVAL = 12 * 60 * 1000; // 12 minuti in millisecondi
+    
+    console.log(`🏓 Sistema auto-ping attivato per ${RENDER_URL}`);
+    console.log(`⏰ Intervallo ping: ${PING_INTERVAL / 1000 / 60} minuti`);
+    
+    // Primo ping dopo 2 minuti dall'avvio
+    setTimeout(() => {
+      startAutoPing(RENDER_URL, PING_INTERVAL);
+    }, 2 * 60 * 1000);
+  }
 });
+
+// Funzione per il sistema di auto-ping
+function startAutoPing(url, interval) {
+  const https = require('https');
+  const http = require('http');
+  
+  function ping() {
+    const pingUrl = `${url}/ping`;
+    const client = url.startsWith('https') ? https : http;
+    
+    const req = client.get(pingUrl, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          const response = JSON.parse(data);
+          console.log(`🏓 Auto-ping riuscito: ${response.timestamp}`);
+        } catch (e) {
+          console.log(`🏓 Auto-ping riuscito (status: ${res.statusCode})`);
+        }
+      });
+    });
+    
+    req.on('error', (err) => {
+      console.error(`❌ Auto-ping fallito:`, err.message);
+    });
+    
+    req.setTimeout(10000, () => {
+      req.destroy();
+      console.error(`⏰ Auto-ping timeout`);
+    });
+  }
+  
+  // Esegui ping immediatamente e poi ogni intervallo
+  ping();
+  setInterval(ping, interval);
+}
 
 module.exports = { app, server, db };
