@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useSocket } from '../context/SocketContext';
 import { Customer } from '../types';
@@ -19,7 +19,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ onCustomerUpdat
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [fetchCustomers]);
 
   useEffect(() => {
     if (socket) {
@@ -48,7 +48,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ onCustomerUpdat
     }
   }, [socket]);
 
-  const fetchCustomers = async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/customers', {
@@ -61,7 +61,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ onCustomerUpdat
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ message, type });

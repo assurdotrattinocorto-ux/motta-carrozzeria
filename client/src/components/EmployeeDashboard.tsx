@@ -120,7 +120,7 @@ const EmployeeDashboard: React.FC = () => {
 
   const handleStartTimer = async (jobId: number) => {
     try {
-      const response = await axios.post(`/api/jobs/${jobId}/timer/start`);
+      await axios.post(`/api/jobs/${jobId}/timer/start`);
       
       // Fetch del timer attivo aggiornato
       await fetchActiveTimer();
