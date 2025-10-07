@@ -37,7 +37,7 @@ if (process.env.NODE_ENV === 'production') {
     buildPath = path.join(__dirname, 'client', 'build');
   } else {
     // In locale, il path normale
-    buildPath = path.join(__dirname, '..', 'client', 'build');
+    buildPath = path.join(__dirname, '..', 'src', 'client', 'build');
   }
   
   console.log('🔍 Build path:', buildPath);
@@ -1318,7 +1318,7 @@ if (process.env.NODE_ENV === 'production') {
       indexPath = path.join(__dirname, 'client', 'build', 'index.html');
     } else {
       // In locale, il path normale
-      indexPath = path.join(__dirname, '..', 'client', 'build', 'index.html');
+      indexPath = path.join(__dirname, '..', 'src', 'client', 'build', 'index.html');
     }
     
     console.log('🔍 Index path:', indexPath);
