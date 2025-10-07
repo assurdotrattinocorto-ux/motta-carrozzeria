@@ -28,17 +28,11 @@ app.use(express.json());
 
 // Serve static files from React build
 if (process.env.NODE_ENV === 'production') {
-  // Render aggiunge automaticamente /src al path, quindi dobbiamo adattarci
-  const isRender = process.env.RENDER === 'true' || process.env.RENDER_SERVICE_ID;
-  let buildPath;
-  
-  if (isRender) {
-    // Su Render, il path effettivo è /opt/render/project/src/client/build
-    buildPath = path.join(__dirname, 'client', 'build');
-  } else {
-    // In locale, il path normale
-    buildPath = path.join(__dirname, '..', 'src', 'client', 'build');
-  }
+  // Configurazione percorsi per build e index.html
+  const isRender = process.env.RENDER === 'true';
+  const buildPath = isRender 
+    ? path.join(__dirname, '..', 'build')  // Su Render: /opt/render/project/build
+    : path.join(__dirname, '..', 'build'); // In locale: build nella root
   
   console.log('🔍 Build path:', buildPath);
   console.log('🔍 Is Render:', isRender);
@@ -1309,17 +1303,10 @@ app.delete('/api/customers/:id', authenticateToken, (req, res) => {
 // Catch-all handler: send back React's index.html file for any non-API routes
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
-    // Render aggiunge automaticamente /src al path, quindi dobbiamo adattarci
-    const isRender = process.env.RENDER === 'true' || process.env.RENDER_SERVICE_ID;
-    let indexPath;
-    
-    if (isRender) {
-      // Su Render, il path effettivo è /opt/render/project/src/client/build/index.html
-      indexPath = path.join(__dirname, 'client', 'build', 'index.html');
-    } else {
-      // In locale, il path normale
-      indexPath = path.join(__dirname, '..', 'src', 'client', 'build', 'index.html');
-    }
+    const isRender = process.env.RENDER === 'true';
+    const indexPath = isRender 
+      ? path.join(__dirname, '..', 'build', 'index.html')  // Su Render
+      : path.join(__dirname, '..', 'build', 'index.html'); // In locale
     
     console.log('🔍 Index path:', indexPath);
     console.log('🔍 Is Render:', isRender);

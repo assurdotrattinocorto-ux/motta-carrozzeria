@@ -1,39 +1,52 @@
 {
-  "name": "motta-carrozzeria-gestionale",
-  "version": "1.0.0",
-  "description": "Sistema gestionale completo per la carrozzeria Motta",
-  "main": "server/index.js",
+  "name": "client",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@types/jest": "^27.5.2",
+    "@types/node": "^16.18.126",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "axios": "^1.12.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-scripts": "5.0.1",
+    "socket.io-client": "^4.8.1",
+    "typescript": "^4.9.5",
+    "web-vitals": "^2.1.4"
+  },
   "scripts": {
     "start": "node server/index.js",
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "nodemon server/index.js",
-    "client": "cd client && npm start",
-    "build": "npm install && cd src/client && npm install && npm run build && cd ../..",
-    "install-all": "npm install && cd client && npm install",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "server": "node server/index.js",
+    "build": "npm install && npm run build:client",
+    "build:client": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "install-all": "npm install && cd client && npm install && cd ..",
+    "dev": "concurrently \"npm run server\" \"cd client && npm start\"",
+    "vercel-build": "npm install && cd client && npm install && npm run build"
   },
-  "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
-    "jsonwebtoken": "^9.0.2",
-    "node-fetch": "^2.7.0",
-    "socket.io": "^4.7.2",
-    "sqlite3": "^5.1.6",
-    "uuid": "^9.0.0"
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
   },
-  "devDependencies": {
-    "concurrently": "^8.2.0",
-    "nodemon": "^3.0.1"
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   },
-  "keywords": [
-    "carrozzeria",
-    "gestionale",
-    "automotive",
-    "timer",
-    "dashboard"
-  ],
-  "author": "Motta Carrozzeria",
-  "license": "MIT"
+  "proxy": "http://localhost:5000"
 }
