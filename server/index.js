@@ -28,8 +28,20 @@ app.use(express.json());
 
 // Serve static files from React build
 if (process.env.NODE_ENV === 'production') {
-  const buildPath = path.join(__dirname, '..', 'client', 'build');
+  // Render aggiunge automaticamente /src al path, quindi dobbiamo adattarci
+  const isRender = process.env.RENDER === 'true' || process.env.RENDER_SERVICE_ID;
+  let buildPath;
+  
+  if (isRender) {
+    // Su Render, il path effettivo è /opt/render/project/src/client/build
+    buildPath = path.join(__dirname, 'client', 'build');
+  } else {
+    // In locale, il path normale
+    buildPath = path.join(__dirname, '..', 'client', 'build');
+  }
+  
   console.log('🔍 Build path:', buildPath);
+  console.log('🔍 Is Render:', isRender);
   app.use(express.static(buildPath));
 }
 
@@ -1297,8 +1309,20 @@ app.delete('/api/customers/:id', authenticateToken, (req, res) => {
 // Catch-all handler: send back React's index.html file for any non-API routes
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
-    const indexPath = path.join(__dirname, '..', 'client', 'build', 'index.html');
+    // Render aggiunge automaticamente /src al path, quindi dobbiamo adattarci
+    const isRender = process.env.RENDER === 'true' || process.env.RENDER_SERVICE_ID;
+    let indexPath;
+    
+    if (isRender) {
+      // Su Render, il path effettivo è /opt/render/project/src/client/build/index.html
+      indexPath = path.join(__dirname, 'client', 'build', 'index.html');
+    } else {
+      // In locale, il path normale
+      indexPath = path.join(__dirname, '..', 'client', 'build', 'index.html');
+    }
+    
     console.log('🔍 Index path:', indexPath);
+    console.log('🔍 Is Render:', isRender);
     res.sendFile(indexPath);
   });
 }
