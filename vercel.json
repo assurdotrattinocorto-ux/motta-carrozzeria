@@ -21,7 +21,7 @@
     },
     {
       "source": "/((?!api\\/.*).*)",
-      "destination": "/index.html"
+      "destination": "/client/build/index.html"
     }
   ],
   "env": {
