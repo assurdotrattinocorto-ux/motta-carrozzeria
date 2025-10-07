@@ -3,7 +3,7 @@ services:
     name: motta5-server
     env: node
     plan: free
-    buildCommand: cd client && npm install && npm run build && cd .. && npm install
+    buildCommand: npm install && cd client && npm install && npm run build && cd ..
     startCommand: node server/index.js
     envVars:
       - key: PORT
