@@ -28,7 +28,9 @@ app.use(express.json());
 
 // Serve static files from React build
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '..', 'client', 'build')));
+  const buildPath = path.join(__dirname, '..', 'client', 'build');
+  console.log('🔍 Build path:', buildPath);
+  app.use(express.static(buildPath));
 }
 
 // Database setup
@@ -1295,7 +1297,9 @@ app.delete('/api/customers/:id', authenticateToken, (req, res) => {
 // Catch-all handler: send back React's index.html file for any non-API routes
 if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'client', 'build', 'index.html'));
+    const indexPath = path.join(__dirname, '..', 'client', 'build', 'index.html');
+    console.log('🔍 Index path:', indexPath);
+    res.sendFile(indexPath);
   });
 }
 
