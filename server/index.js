@@ -26,6 +26,11 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Serve static files from React build
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '..', 'client', 'build')));
+}
+
 // Database setup
 const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '..', 'database.db');
 const db = new sqlite3.Database(dbPath);
@@ -1286,6 +1291,13 @@ app.delete('/api/customers/:id', authenticateToken, (req, res) => {
     res.json({ message: 'Cliente eliminato con successo' });
   });
 });
+
+// Catch-all handler: send back React's index.html file for any non-API routes
+if (process.env.NODE_ENV === 'production') {
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'client', 'build', 'index.html'));
+  });
+}
 
 // WebSocket connection handling
 io.on('connection', (socket) => {
