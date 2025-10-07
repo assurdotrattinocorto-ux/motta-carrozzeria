@@ -11,6 +11,7 @@
     "build": "npm run install-client && npm run build-client",
     "install-client": "cd client && npm install",
     "build-client": "cd client && npm run build",
+    "postinstall": "npm run install-client && npm run build-client",
     "install-all": "npm install && cd client && npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
