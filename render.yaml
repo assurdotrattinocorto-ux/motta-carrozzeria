@@ -1,18 +1,24 @@
 services:
   - type: web
-    name: motta5-server
+    name: motta-carrozzeria
     env: node
-    plan: free
-    buildCommand: npm install && cd client && npm install && npm run build && cd ..
+    repo: https://github.com/assurdotrattinocorto-ux/motta-carrozzeria
+    branch: main
+    buildCommand: npm install && cd client && npm install && npm run build
     startCommand: node server/index.js
+    plan: free
+    region: oregon
     envVars:
-      - key: PORT
-        value: 10000
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
       - key: DATABASE_PATH
         value: ./database.db
-      - key: JWT_SECRET
-        value: motta_carrozzeria_secret_key_2024_render
       - key: CORS_ORIGIN
-        value: https://motta-carrozzeria-9s5o.onrender.com
+        fromService:
+          type: web
+          name: motta-carrozzeria
+          property: url
