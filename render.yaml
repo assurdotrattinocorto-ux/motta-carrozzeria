@@ -4,9 +4,15 @@ services:
     env: node
     plan: free
     buildCommand: cd client && npm install && npm run build && cd .. && npm install
-    startCommand: npm run server
+    startCommand: node server/index.js
     envVars:
-      - key: NODE_ENV
-        value: production
       - key: PORT
         value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_PATH
+        value: ./database.db
+      - key: JWT_SECRET
+        value: motta_carrozzeria_secret_key_2024_render
+      - key: CORS_ORIGIN
+        value: https://motta-carrozzeria-9s5o.onrender.com
