@@ -17,6 +17,26 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ onCustomerUpdat
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const { socket } = useSocket();
 
+  const showNotification = useCallback((message: string, type: 'success' | 'error' | 'info') => {
+    setNotification({ message, type });
+    setTimeout(() => setNotification(null), 3000);
+  }, []);
+
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('/api/customers', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setCustomers(response.data);
+    } catch (error) {
+      console.error('Errore nel caricamento dei clienti:', error);
+      showNotification('Errore nel caricamento dei clienti', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [showNotification]);
+
   useEffect(() => {
     fetchCustomers();
   }, [fetchCustomers]);
@@ -46,27 +66,7 @@ const CustomerManagement: React.FC<CustomerManagementProps> = ({ onCustomerUpdat
         socket.off('customerDeleted');
       };
     }
-  }, [socket]);
-
-  const fetchCustomers = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/customers', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setCustomers(response.data);
-    } catch (error) {
-      console.error('Errore nel caricamento dei clienti:', error);
-      showNotification('Errore nel caricamento dei clienti', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
+  }, [socket, showNotification]);
 
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
