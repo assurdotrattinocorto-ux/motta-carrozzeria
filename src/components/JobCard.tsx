@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import QuoteSection from './QuoteSection';
 
 interface Job {
   id: number;
@@ -20,6 +21,17 @@ interface Job {
   actual_hours: number;
   created_at: string;
   updated_at: string;
+  spare_parts?: SparePart[];
+}
+
+interface SparePart {
+  id?: number;
+  name: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  supplier?: string;
+  part_number?: string;
 }
 
 interface User {
@@ -35,6 +47,7 @@ interface JobCardProps {
   onStatusUpdate: (jobId: number, newStatus: string) => void;
   onDelete?: (jobId: number) => void;
   onArchive?: (jobId: number) => void;
+  onSparePartsUpdate?: (jobId: number, spareParts: SparePart[]) => void;
   isAdmin: boolean;
   currentUserId?: number;
 }
@@ -45,10 +58,21 @@ const JobCard: React.FC<JobCardProps> = ({
   onStatusUpdate, 
   onDelete, 
   onArchive,
+  onSparePartsUpdate,
   isAdmin,
   currentUserId
 }) => {
   const [showDetails, setShowDetails] = useState(false);
+  const [showSpareParts, setShowSpareParts] = useState(false);
+  const [spareParts, setSpareParts] = useState<SparePart[]>(job.spare_parts || []);
+  const [newPart, setNewPart] = useState<SparePart>({
+    name: '',
+    quantity: 1,
+    unit_price: 0,
+    total_price: 0,
+    supplier: '',
+    part_number: ''
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -111,6 +135,44 @@ const JobCard: React.FC<JobCardProps> = ({
     const h = Math.floor(totalMinutes / 60);
     const m = totalMinutes % 60;
     return `${h}:${m.toString().padStart(2, '0')}:00`;
+  };
+
+  const handleAddSparePart = () => {
+    if (newPart.name.trim() === '') return;
+    
+    const partWithTotal = {
+      ...newPart,
+      total_price: newPart.quantity * newPart.unit_price
+    };
+    
+    const updatedParts = [...spareParts, partWithTotal];
+    setSpareParts(updatedParts);
+    
+    if (onSparePartsUpdate) {
+      onSparePartsUpdate(job.id, updatedParts);
+    }
+    
+    setNewPart({
+      name: '',
+      quantity: 1,
+      unit_price: 0,
+      total_price: 0,
+      supplier: '',
+      part_number: ''
+    });
+  };
+
+  const handleRemoveSparePart = (index: number) => {
+    const updatedParts = spareParts.filter((_, i) => i !== index);
+    setSpareParts(updatedParts);
+    
+    if (onSparePartsUpdate) {
+      onSparePartsUpdate(job.id, updatedParts);
+    }
+  };
+
+  const calculateSparePartsTotal = () => {
+    return spareParts.reduce((total, part) => total + part.total_price, 0);
   };
 
   const getPriorityColor = () => {
@@ -266,6 +328,150 @@ const JobCard: React.FC<JobCardProps> = ({
             </div>
           </div>
         )}
+
+        {/* Sezione Pezzi di Ricambio */}
+        <div className="spare-parts-section">
+          <div className="spare-parts-header">
+            <button
+              className="btn-modern btn-spare-parts"
+              onClick={() => setShowSpareParts(!showSpareParts)}
+              title={showSpareParts ? 'Nascondi pezzi di ricambio' : 'Mostra pezzi di ricambio'}
+            >
+              <span className="spare-parts-icon">🔧</span>
+              <span>Pezzi di Ricambio</span>
+              <span className={`chevron ${showSpareParts ? 'up' : 'down'}`}>
+                {showSpareParts ? '▲' : '▼'}
+              </span>
+              {spareParts.length > 0 && (
+                <span className="parts-count">({spareParts.length})</span>
+              )}
+            </button>
+            {spareParts.length > 0 && (
+              <div className="parts-total">
+                Totale: €{calculateSparePartsTotal().toFixed(2)}
+              </div>
+            )}
+          </div>
+
+          {showSpareParts && (
+            <div className="spare-parts-content">
+              {/* Lista pezzi esistenti */}
+              {spareParts.length > 0 && (
+                <div className="existing-parts">
+                  <h5>🔩 Pezzi Aggiunti</h5>
+                  <div className="parts-list">
+                    {spareParts.map((part, index) => (
+                      <div key={index} className="part-item">
+                        <div className="part-info">
+                          <div className="part-name">{part.name}</div>
+                          <div className="part-details">
+                            {part.part_number && <span className="part-number">#{part.part_number}</span>}
+                            {part.supplier && <span className="supplier">da {part.supplier}</span>}
+                          </div>
+                          <div className="part-pricing">
+                            <span className="quantity">{part.quantity}x</span>
+                            <span className="unit-price">€{part.unit_price.toFixed(2)}</span>
+                            <span className="total-price">= €{part.total_price.toFixed(2)}</span>
+                          </div>
+                        </div>
+                        <button
+                          className="btn-remove-part"
+                          onClick={() => handleRemoveSparePart(index)}
+                          title="Rimuovi pezzo"
+                        >
+                          ❌
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Form per aggiungere nuovo pezzo */}
+              {(isAdmin || job.assigned_to === currentUserId) && (
+                <div className="add-part-form">
+                  <h5>➕ Aggiungi Pezzo</h5>
+                  <div className="form-grid">
+                    <div className="form-group">
+                      <label>Nome Pezzo *</label>
+                      <input
+                        type="text"
+                        value={newPart.name}
+                        onChange={(e) => setNewPart({...newPart, name: e.target.value})}
+                        placeholder="es. Filtro olio, Pastiglie freno..."
+                        className="form-input"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Codice Pezzo</label>
+                      <input
+                        type="text"
+                        value={newPart.part_number}
+                        onChange={(e) => setNewPart({...newPart, part_number: e.target.value})}
+                        placeholder="es. ABC123"
+                        className="form-input"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Fornitore</label>
+                      <input
+                        type="text"
+                        value={newPart.supplier}
+                        onChange={(e) => setNewPart({...newPart, supplier: e.target.value})}
+                        placeholder="es. Bosch, Magneti Marelli..."
+                        className="form-input"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Quantità *</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={newPart.quantity}
+                        onChange={(e) => setNewPart({...newPart, quantity: parseInt(e.target.value) || 1})}
+                        className="form-input"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Prezzo Unitario (€) *</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={newPart.unit_price}
+                        onChange={(e) => setNewPart({...newPart, unit_price: parseFloat(e.target.value) || 0})}
+                        className="form-input"
+                      />
+                    </div>
+                    <div className="form-group total-preview">
+                      <label>Totale</label>
+                      <div className="total-value">
+                        €{(newPart.quantity * newPart.unit_price).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    className="btn-add-part"
+                    onClick={handleAddSparePart}
+                    disabled={!newPart.name.trim() || newPart.unit_price <= 0}
+                  >
+                    ➕ Aggiungi Pezzo
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Sezione Preventivi */}
+        <QuoteSection
+          jobId={job.id}
+          spareParts={spareParts}
+          estimatedHours={job.estimated_hours}
+          isAdmin={isAdmin}
+          currentUserId={currentUserId}
+          assignedTo={job.assigned_to}
+        />
 
         <div className="status-controls-modern">
           <label htmlFor={`status-${job.id}`} className="control-label">

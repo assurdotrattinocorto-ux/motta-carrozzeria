@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 
 interface Job {
   id: number;
@@ -20,6 +21,7 @@ interface Job {
   actual_hours: number;
   created_at: string;
   updated_at: string;
+  photo_url?: string;
 }
 
 interface User {
@@ -37,6 +39,7 @@ interface JobCardProps {
   onArchive?: (jobId: number) => void;
   isAdmin: boolean;
   currentUserId?: number;
+  onPhotoUpload?: (jobId: number, photoUrl: string) => void;
 }
 
 const JobCard: React.FC<JobCardProps> = ({ 
@@ -46,9 +49,11 @@ const JobCard: React.FC<JobCardProps> = ({
   onDelete, 
   onArchive,
   isAdmin,
-  currentUserId
+  currentUserId,
+  onPhotoUpload
 }) => {
   const [showDetails, setShowDetails] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -111,6 +116,50 @@ const JobCard: React.FC<JobCardProps> = ({
     const h = Math.floor(totalMinutes / 60);
     const m = totalMinutes % 60;
     return `${h}:${m.toString().padStart(2, '0')}:00`;
+  };
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Verifica che sia un'immagine
+    if (!file.type.startsWith('image/')) {
+      alert('Per favore seleziona un file immagine valido.');
+      return;
+    }
+
+    // Verifica dimensione file (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Il file è troppo grande. Dimensione massima: 5MB.');
+      return;
+    }
+
+    setUploadingPhoto(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('photo', file);
+
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`/api/jobs/${job.id}/photo`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.data.success && onPhotoUpload) {
+        onPhotoUpload(job.id, response.data.photo_url);
+        alert('Foto caricata con successo!');
+      }
+    } catch (error: any) {
+      console.error('Errore durante il caricamento della foto:', error);
+      alert(error.response?.data?.error || 'Errore durante il caricamento della foto');
+    } finally {
+      setUploadingPhoto(false);
+      // Reset input
+      event.target.value = '';
+    }
   };
 
   const getPriorityColor = () => {
@@ -246,6 +295,81 @@ const JobCard: React.FC<JobCardProps> = ({
             <div className="description-section">
               <h4>📝 Descrizione</h4>
               <p>{job.description || 'Nessuna descrizione disponibile'}</p>
+            </div>
+            
+            {/* Sezione foto del lavoro */}
+            <div className="photo-section">
+              <h4>📸 Foto del lavoro</h4>
+              {job.photo_url ? (
+                <div className="photo-container">
+                  <img 
+                    src={job.photo_url} 
+                    alt="Foto del lavoro completato" 
+                    className="job-photo"
+                    style={{
+                      maxWidth: '100%',
+                      maxHeight: '300px',
+                      borderRadius: '8px',
+                      objectFit: 'cover',
+                      border: '1px solid #ddd'
+                    }}
+                  />
+                </div>
+              ) : (
+                <p style={{ color: '#6c757d', fontStyle: 'italic' }}>
+                  Nessuna foto caricata
+                </p>
+              )}
+              
+              {/* Upload foto - solo per dipendenti assegnati o admin */}
+              {(isAdmin || job.assigned_to === currentUserId || 
+                (job.assigned_employees && job.assigned_employees.some(emp => emp.id === currentUserId))) && (
+                <div className="photo-upload-section" style={{ marginTop: '1rem' }}>
+                  <label htmlFor={`photo-upload-${job.id}`} className="photo-upload-label">
+                    <input
+                      id={`photo-upload-${job.id}`}
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      className="btn-modern btn-photo-upload"
+                      disabled={uploadingPhoto}
+                      onClick={() => document.getElementById(`photo-upload-${job.id}`)?.click()}
+                      style={{
+                        backgroundColor: uploadingPhoto ? '#6c757d' : '#007bff',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.5rem 1rem',
+                        borderRadius: '4px',
+                        cursor: uploadingPhoto ? 'not-allowed' : 'pointer',
+                        fontSize: '0.9rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      {uploadingPhoto ? (
+                        <>
+                          <span>⏳</span>
+                          Caricamento...
+                        </>
+                      ) : (
+                        <>
+                          <span>📷</span>
+                          {job.photo_url ? 'Aggiorna foto' : 'Carica foto'}
+                        </>
+                      )}
+                    </button>
+                  </label>
+                  <small style={{ color: '#6c757d', fontSize: '0.8rem', marginTop: '0.25rem', display: 'block' }}>
+                    Formati supportati: JPG, PNG, GIF (max 5MB)
+                  </small>
+                </div>
+              )}
             </div>
             
             <div className="meta-info-grid">

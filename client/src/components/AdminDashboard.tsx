@@ -10,6 +10,8 @@ import EventForm from './EventForm';
 import EmployeeManagement from './EmployeeManagement';
 import CustomerManagement from './CustomerManagement';
 import ArchivedJobs from './ArchivedJobs';
+import QuotesManagement from './QuotesManagement';
+import InvoicesManagement from './InvoicesManagement';
 
 interface CalendarEvent {
   id?: number;
@@ -30,7 +32,7 @@ const AdminDashboard: React.FC = () => {
   const [showEventForm, setShowEventForm] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'jobs' | 'calendar' | 'employees' | 'customers' | 'archived'>('jobs');
+  const [activeTab, setActiveTab] = useState<'jobs' | 'calendar' | 'employees' | 'customers' | 'quotes' | 'invoices' | 'archived'>('jobs');
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const { socket } = useSocket();
   const { user } = useAuth();
@@ -187,6 +189,13 @@ const AdminDashboard: React.FC = () => {
     fetchUsers();
   };
 
+  const handlePhotoUpload = (jobId: number, photoUrl: string) => {
+    // Aggiorna lo stato locale del lavoro con la nuova foto
+    setJobs(prev => prev.map(job => 
+      job.id === jobId ? { ...job, photo_url: photoUrl } : job
+    ));
+  };
+
   const getStatusCounts = () => {
     return {
       todo: jobs.filter(job => job.status === 'todo').length,
@@ -241,6 +250,18 @@ const AdminDashboard: React.FC = () => {
             onClick={() => setActiveTab('customers')}
           >
             🏢 Clienti
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'quotes' ? 'active' : ''}`}
+            onClick={() => setActiveTab('quotes')}
+          >
+            💰 Preventivi
+          </button>
+          <button 
+            className={`tab-button ${activeTab === 'invoices' ? 'active' : ''}`}
+            onClick={() => setActiveTab('invoices')}
+          >
+            📄 Fatture
           </button>
           <button 
             className={`tab-button ${activeTab === 'archived' ? 'active' : ''}`}
@@ -346,6 +367,7 @@ const AdminDashboard: React.FC = () => {
                   onArchive={handleArchiveJob}
                   isAdmin={true}
                   currentUserId={user?.id}
+                  onPhotoUpload={handlePhotoUpload}
                 />
               ))}
             </div>
@@ -369,6 +391,14 @@ const AdminDashboard: React.FC = () => {
 
       {activeTab === 'customers' && (
         <CustomerManagement />
+      )}
+
+      {activeTab === 'quotes' && (
+        <QuotesManagement />
+      )}
+
+      {activeTab === 'invoices' && (
+        <InvoicesManagement />
       )}
 
       {activeTab === 'archived' && (

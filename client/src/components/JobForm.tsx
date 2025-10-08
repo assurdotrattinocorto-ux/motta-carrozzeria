@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Job, User } from '../types';
+import { Job, User, Customer } from '../types';
 import '../styles/JobForm.css';
 
 interface JobFormProps {
@@ -11,6 +11,7 @@ interface JobFormProps {
 
 const JobForm: React.FC<JobFormProps> = ({ onJobCreated, onClose, job }) => {
   const [users, setUsers] = useState<User[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [formData, setFormData] = useState({
     title: job?.title || '',
     description: job?.description || '',
@@ -87,6 +88,43 @@ const JobForm: React.FC<JobFormProps> = ({ onJobCreated, onClose, job }) => {
 
     fetchEmployees();
   }, []); // Fetch employees when component mounts
+
+  // Fetch customers when component mounts
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        console.log('=== INIZIO FETCH CLIENTI ===');
+        const token = localStorage.getItem('token');
+        
+        if (!token) {
+          console.error('Token di autenticazione non trovato');
+          return;
+        }
+
+        console.log('Caricamento clienti dal server...');
+        const response = await axios.get('/api/customers', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        console.log('=== RISPOSTA API CLIENTI ===');
+        console.log('Clienti ricevuti:', response.data);
+        console.log('Numero di clienti:', response.data.length);
+        
+        setCustomers(response.data);
+      } catch (error) {
+        console.error('=== ERRORE FETCH CLIENTI ===');
+        console.error('Errore completo:', error);
+        if (axios.isAxiosError(error)) {
+          console.error('Status:', error.response?.status);
+          console.error('Data:', error.response?.data);
+        }
+      }
+    };
+
+    fetchCustomers();
+  }, []); // Fetch customers when component mounts
 
   // Update form data when job prop changes (for editing)
   useEffect(() => {
@@ -190,16 +228,21 @@ const JobForm: React.FC<JobFormProps> = ({ onJobCreated, onClose, job }) => {
           </div>
 
           <div className="form-group">
-            <label htmlFor="customer_name">Nome Cliente *</label>
-            <input
-              type="text"
+            <label htmlFor="customer_name">Cliente *</label>
+            <select
               id="customer_name"
               name="customer_name"
               value={formData.customer_name}
               onChange={handleChange}
               required
-              placeholder="es. Nome Cliente"
-            />
+            >
+              <option value="">Seleziona un cliente...</option>
+              {customers.map(customer => (
+                <option key={customer.id} value={customer.name}>
+                  {customer.name} {customer.company ? `(${customer.company})` : ''}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="form-group">

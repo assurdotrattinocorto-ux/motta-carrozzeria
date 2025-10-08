@@ -3,28 +3,23 @@ import { io, Socket } from 'socket.io-client';
 
 interface SocketContextType {
   socket: Socket | null;
-  connected: boolean;
 }
 
-const SocketContext = createContext<SocketContextType | undefined>(undefined);
+const SocketContext = createContext<SocketContextType>({ socket: null });
 
-export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const useSocket = () => useContext(SocketContext);
+
+interface SocketProviderProps {
+  children: ReactNode;
+}
+
+export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
   const [socket, setSocket] = useState<Socket | null>(null);
-  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5000');
-    
-    newSocket.on('connect', () => {
-      console.log('🔌 Connesso al server WebSocket');
-      setConnected(true);
-    });
-
-    newSocket.on('disconnect', () => {
-      console.log('🔌 Disconnesso dal server WebSocket');
-      setConnected(false);
-    });
-
+    // Use current window location for socket connection
+    const socketUrl = window.location.protocol + '//' + window.location.host;
+    const newSocket = io(socketUrl);
     setSocket(newSocket);
 
     return () => {
@@ -33,16 +28,8 @@ export const SocketProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, []);
 
   return (
-    <SocketContext.Provider value={{ socket, connected }}>
+    <SocketContext.Provider value={{ socket }}>
       {children}
     </SocketContext.Provider>
   );
-};
-
-export const useSocket = () => {
-  const context = useContext(SocketContext);
-  if (context === undefined) {
-    throw new Error('useSocket must be used within a SocketProvider');
-  }
-  return context;
 };

@@ -20,6 +20,7 @@ interface Job {
   actual_hours: number;
   created_at: string;
   updated_at: string;
+  photo_url?: string;
 }
 
 interface ActiveTimer {
@@ -155,6 +156,13 @@ const EmployeeDashboard: React.FC = () => {
     }
   };
 
+  const handlePhotoUpload = (jobId: number, photoUrl: string) => {
+    // Aggiorna lo stato locale del lavoro con la nuova foto
+    setJobs(prev => prev.map(job => 
+      job.id === jobId ? { ...job, photo_url: photoUrl } : job
+    ));
+  };
+
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
@@ -286,6 +294,7 @@ const EmployeeDashboard: React.FC = () => {
                 onStatusUpdate={handleStatusUpdate}
                 isAdmin={false}
                 currentUserId={user?.id}
+                onPhotoUpload={handlePhotoUpload}
               />
               
               {/* Timer Controls per ogni lavoro */}
