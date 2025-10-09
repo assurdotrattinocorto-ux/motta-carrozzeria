@@ -8,7 +8,7 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const multer = require('multer');
 const fs = require('fs');
-const { DatabaseBackupSystem } = require('../backup_system');
+const { DatabaseBackupSystem } = require(path.join(__dirname, '..', 'backup_system'));
 require('dotenv').config();
 
 const app = express();
