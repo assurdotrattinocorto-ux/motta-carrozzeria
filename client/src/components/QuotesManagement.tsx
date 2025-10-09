@@ -35,10 +35,6 @@ const QuotesManagement: React.FC = () => {
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [showNewQuoteModal, setShowNewQuoteModal] = useState(false);
 
-  useEffect(() => {
-    fetchQuotes();
-  }, [filter, fetchQuotes]);
-
   const fetchQuotes = useCallback(async () => {
     try {
       setLoading(true);
@@ -57,6 +53,10 @@ const QuotesManagement: React.FC = () => {
       setLoading(false);
     }
   }, [filter]);
+
+  useEffect(() => {
+    fetchQuotes();
+  }, [filter, fetchQuotes]);
 
   const updateQuoteStatus = async (quoteId: number, newStatus: Quote['status']) => {
     try {
