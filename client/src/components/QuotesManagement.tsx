@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import QuoteForm from './QuoteForm';
 import './QuotesManagement.css';
@@ -37,9 +37,9 @@ const QuotesManagement: React.FC = () => {
 
   useEffect(() => {
     fetchQuotes();
-  }, [filter]);
+  }, [filter, fetchQuotes]);
 
-  const fetchQuotes = async () => {
+  const fetchQuotes = useCallback(async () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -56,12 +56,12 @@ const QuotesManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]);
 
   const updateQuoteStatus = async (quoteId: number, newStatus: Quote['status']) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.put(`/api/quotes/${quoteId}/status`, 
+      await axios.put(`/api/quotes/${quoteId}/status`, 
         { status: newStatus },
         {
           headers: {

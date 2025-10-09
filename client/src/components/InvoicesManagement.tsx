@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useSocket } from '../context/SocketContext';
 import InvoiceForm from './InvoiceForm';
@@ -70,20 +70,24 @@ const InvoicesManagement: React.FC = () => {
     }
   }, [socket]);
 
-  const fetchInvoices = async () => {
+  const fetchInvoices = useCallback(async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.get('/api/invoices', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       setInvoices(response.data);
     } catch (error) {
       console.error('Errore nel caricamento delle fatture:', error);
-      showNotification('Errore nel caricamento delle fatture', 'error');
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]); // Fixed dependency array
 
   const showNotification = (message: string, type: 'success' | 'error' | 'info') => {
     setNotification({ message, type });

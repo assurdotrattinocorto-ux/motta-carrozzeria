@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Job, Customer } from '../types';
+import { Job } from '../types';
 import './InvoiceForm.css';
 
 interface Quote {
@@ -48,7 +48,7 @@ interface InvoiceFormProps {
 const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  // Removed unused customers state variable
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [useQuote, setUseQuote] = useState(false);
@@ -77,7 +77,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
 
   useEffect(() => {
     fetchJobs();
-    fetchCustomers();
     fetchQuotes();
     
     // Imposta la data di scadenza a 30 giorni dalla data fattura
@@ -90,13 +89,13 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
         due_date: dueDate.toISOString().split('T')[0] 
       }));
     }
-  }, []);
+  }, [formData.invoice_date, invoice?.due_date]); // Added missing dependencies
 
   useEffect(() => {
     if (!invoice?.invoice_number && (formData.job_id || formData.quote_id)) {
       generateInvoiceNumber();
     }
-  }, [formData.job_id, formData.quote_id]);
+  }, [formData.job_id, formData.quote_id, invoice?.invoice_number]); // Added missing dependency
 
   const fetchJobs = async () => {
     try {
@@ -107,18 +106,6 @@ const InvoiceForm: React.FC<InvoiceFormProps> = ({ invoice, onSave, onCancel }) 
       setJobs(response.data);
     } catch (error) {
       console.error('Errore nel caricamento dei lavori:', error);
-    }
-  };
-
-  const fetchCustomers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/customers', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      setCustomers(response.data);
-    } catch (error) {
-      console.error('Errore nel caricamento dei clienti:', error);
     }
   };
 

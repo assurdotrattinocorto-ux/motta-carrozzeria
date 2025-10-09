@@ -39,9 +39,13 @@ interface QuoteFormProps {
 
 const QuoteForm: React.FC<QuoteFormProps> = ({ quote, onSave, onCancel }) => {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [spareParts, setSpareParts] = useState<SparePart[]>([]);
   const [loading, setLoading] = useState(false);
+  const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  // Remove unused customers state
+  // const [customers, setCustomers] = useState<Customer[]>([]);
+
   const [error, setError] = useState('');
 
   const [formData, setFormData] = useState({
@@ -63,11 +67,17 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote, onSave, onCancel }) => {
 
   useEffect(() => {
     fetchJobs();
-    fetchCustomers();
+    // Remove fetchCustomers call since customers state is not used
     if (quote?.job_id) {
       fetchSpareParts(quote.job_id);
     }
   }, [quote]);
+
+  useEffect(() => {
+    if (quote?.quote_number) {
+      setFormData(prev => ({ ...prev, quote_number: quote.quote_number }));
+    }
+  }, [quote?.quote_number]); // Fixed dependency array
 
   useEffect(() => {
     if (!quote?.quote_number && formData.job_id) {
@@ -87,17 +97,18 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ quote, onSave, onCancel }) => {
     }
   };
 
-  const fetchCustomers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get('/api/customers', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      setCustomers(response.data);
-    } catch (error) {
-      console.error('Errore nel caricamento dei clienti:', error);
-    }
-  };
+  // Remove unused fetchCustomers function
+  // const fetchCustomers = async () => {
+  //   try {
+  //     const token = localStorage.getItem('token');
+  //     const response = await axios.get('/api/customers', {
+  //       headers: { 'Authorization': `Bearer ${token}` }
+  //     });
+  //     setCustomers(response.data);
+  //   } catch (error) {
+  //     console.error('Errore nel caricamento dei clienti:', error);
+  //   }
+  // };
 
   const fetchSpareParts = async (jobId: number) => {
     try {
