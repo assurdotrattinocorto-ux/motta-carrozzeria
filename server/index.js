@@ -87,8 +87,8 @@ if (process.env.NODE_ENV === 'production') {
   // Configurazione percorsi per build e index.html
   const isRender = process.env.RENDER === 'true';
   const buildPath = isRender 
-    ? path.join(__dirname, '..', 'build')  // Su Render: /opt/render/project/build
-    : path.join(__dirname, '..', 'build'); // In locale: build nella root
+    ? path.join(__dirname, '..', 'client', 'build')  // Su Render: /opt/render/project/client/build
+    : path.join(__dirname, '..', 'client', 'build'); // In locale: client/build
   
   console.log('🔍 Build path:', buildPath);
   console.log('🔍 Is Render:', isRender);
@@ -2354,8 +2354,8 @@ if (process.env.NODE_ENV === 'production') {
   app.get('*', (req, res) => {
     const isRender = process.env.RENDER === 'true';
     const indexPath = isRender 
-      ? path.join(__dirname, '..', 'build', 'index.html')  // Su Render
-      : path.join(__dirname, '..', 'build', 'index.html'); // In locale
+      ? path.join(__dirname, '..', 'client', 'build', 'index.html')  // Su Render
+      : path.join(__dirname, '..', 'client', 'build', 'index.html'); // In locale
     
     console.log('🔍 Index path:', indexPath);
     console.log('🔍 Is Render:', isRender);
