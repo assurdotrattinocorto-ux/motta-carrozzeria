@@ -104,9 +104,33 @@ if (isPostgres) {
   const { Pool } = require('pg');
   db = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    // Enhanced connection pool settings for Render
+    max: 20, // Maximum number of clients in the pool
+    min: 2,  // Minimum number of clients in the pool
+    idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+    connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
+    acquireTimeoutMillis: 60000, // Return an error after 60 seconds if a client could not be checked out
+    statement_timeout: 30000, // Number of milliseconds before a statement in query will time out
+    query_timeout: 30000, // Number of milliseconds before a query call will timeout
+    keepAlive: true, // Enable TCP keep-alive
+    keepAliveInitialDelayMillis: 10000, // TCP keep-alive delay
   });
-  console.log('🐘 Using PostgreSQL database');
+  
+  // Handle pool errors
+  db.on('error', (err) => {
+    console.error('❌ PostgreSQL pool error:', err);
+  });
+  
+  db.on('connect', (client) => {
+    console.log('✅ New PostgreSQL client connected');
+  });
+  
+  db.on('remove', (client) => {
+    console.log('🔌 PostgreSQL client removed from pool');
+  });
+  
+  console.log('🐘 Using PostgreSQL database with enhanced connection pool');
 } else {
   // SQLite setup (fallback)
   const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '..', 'database.db');
@@ -199,18 +223,62 @@ function getJobWithAssignments(jobId, callback) {
 }
 
 // Initialize database tables with retry mechanism
+// Database health check function
+async function checkDatabaseHealth() {
+  if (!isPostgres) return true;
+  
+  try {
+    console.log('🏥 Performing database health check...');
+    
+    // Test basic connectivity
+    const result = await db.query('SELECT version() as version, current_timestamp as timestamp');
+    console.log('✅ Database is responsive');
+    console.log(`📊 PostgreSQL version: ${result.rows[0].version.split(' ')[0]} ${result.rows[0].version.split(' ')[1]}`);
+    
+    // Test connection pool status
+    console.log(`🔗 Connection pool - Total: ${db.totalCount}, Idle: ${db.idleCount}, Waiting: ${db.waitingCount}`);
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Database health check failed:', error.message);
+    return false;
+  }
+}
+
 async function initializeTables() {
   if (isPostgres) {
-    // PostgreSQL table creation with retry logic
-    const maxRetries = 3;
+    // Perform initial health check
+    const isHealthy = await checkDatabaseHealth();
+    if (!isHealthy) {
+      console.log('⚠️ Initial health check failed, but proceeding with table initialization...');
+    }
+    
+    // PostgreSQL table creation with enhanced retry logic
+    const maxRetries = 5; // Increased from 3 to 5
     let retryCount = 0;
     
     while (retryCount < maxRetries) {
       try {
         console.log(`🔄 Attempting to initialize PostgreSQL tables (attempt ${retryCount + 1}/${maxRetries})`);
         
-        // Test connection first
-        await db.query('SELECT 1');
+        // Enhanced connection test with timeout
+        const connectionTest = new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Connection test timeout'));
+          }, 15000); // 15 second timeout
+          
+          db.query('SELECT 1 as test')
+            .then(result => {
+              clearTimeout(timeout);
+              resolve(result);
+            })
+            .catch(err => {
+              clearTimeout(timeout);
+              reject(err);
+            });
+        });
+        
+        await connectionTest;
         console.log('✅ PostgreSQL connection verified');
         
         // If we get here, connection is good, proceed with table creation
@@ -425,9 +493,12 @@ async function initializeTables() {
         throw error;
       }
       
-      // Wait before retrying (exponential backoff)
-      const waitTime = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
-      console.log(`⏳ Waiting ${waitTime/1000}s before retry...`);
+      // Enhanced wait before retrying with longer delays for Render's database wake-up
+      const baseWaitTime = Math.pow(2, retryCount) * 2000; // 4s, 8s, 16s, 32s, 64s
+      const jitter = Math.random() * 1000; // Add up to 1s random jitter
+      const waitTime = baseWaitTime + jitter;
+      
+      console.log(`⏳ Waiting ${Math.round(waitTime/1000)}s before retry...`);
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
   } // End of retry while loop
