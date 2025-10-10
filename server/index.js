@@ -28,6 +28,9 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 app.use(cors());
 app.use(express.json());
 
+// Import routes
+const apiRoutes = require('./routes');
+
 // Database configuration
 const isPostgres = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgres');
 let db;
@@ -404,6 +407,36 @@ async function initializeTables() {
     // Initialize tables
     await initializeTables();
   }
+
+  // Make database available to routes
+  app.locals.db = db;
+  
+  // Use API routes
+  app.use('/api', apiRoutes);
+
+  // Serve static files from React build in production
+  if (process.env.NODE_ENV === 'production') {
+    const buildPath = path.join(__dirname, '..', 'client', 'build');
+    app.use(express.static(buildPath));
+    
+    // Handle React Router - send all non-API requests to index.html
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(buildPath, 'index.html'));
+    });
+    
+    console.log(`📦 Serving static files from: ${buildPath}`);
+  }
+
+  // Start the server
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    if (process.env.NODE_ENV === 'production') {
+      console.log(`🌐 Production URL: https://motta-carrozzeria-jg5q.onrender.com`);
+    } else {
+      console.log(`📱 Frontend URL: http://localhost:3000`);
+    }
+    console.log(`🔧 API URL: http://localhost:${PORT}`);
+  });
 })();
 
 module.exports = { app, server, db };

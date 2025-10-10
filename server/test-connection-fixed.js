@@ -1,11 +1,21 @@
 const { Client } = require('pg');
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: './.env' });
+
+console.log('Environment variables loaded:');
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 
 async function testConnection() {
     console.log('Testing PostgreSQL connection with improved SSL configuration...');
     
     // Parse the DATABASE_URL to extract components
     const databaseUrl = process.env.DATABASE_URL;
+    
+    if (!databaseUrl) {
+        console.error('❌ DATABASE_URL not found in environment variables');
+        return;
+    }
+    
     console.log('Database URL (without password):', databaseUrl.replace(/:[^:@]*@/, ':***@'));
     
     const client = new Client({
