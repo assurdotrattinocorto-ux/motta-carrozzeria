@@ -1,6 +1,11 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+const { executeQuery, getOne, runQuery } = require('./db-helpers');
+
 const router = express.Router();
 
 // Middleware per autenticazione
@@ -31,7 +36,7 @@ router.post('/login', (req, res) => {
 
   const db = req.app.locals.db;
   
-  db.get('SELECT * FROM users WHERE email = ?', [email], (err, user) => {
+  getOne(db, 'SELECT * FROM users WHERE email = ?', [email], (err, user) => {
     if (err) {
       console.error('Database error:', err);
       return res.status(500).json({ error: 'Errore del database' });
@@ -40,30 +45,29 @@ router.post('/login', (req, res) => {
     if (!user) {
       return res.status(401).json({ error: 'Credenziali non valide' });
     }
-    
+
     bcrypt.compare(password, user.password, (err, isMatch) => {
       if (err) {
-        console.error('Password comparison error:', err);
-        return res.status(500).json({ error: 'Errore di autenticazione' });
+        console.error('Bcrypt error:', err);
+        return res.status(500).json({ error: 'Errore del server' });
       }
-      
+
       if (!isMatch) {
         return res.status(401).json({ error: 'Credenziali non valide' });
       }
-      
+
       const token = jwt.sign(
-        { id: user.id, email: user.email, role: user.role },
+        { userId: user.id, email: user.email },
         process.env.JWT_SECRET || 'your-secret-key',
         { expiresIn: '24h' }
       );
-      
+
       res.json({
         token,
         user: {
           id: user.id,
           email: user.email,
-          name: user.name,
-          role: user.role
+          nome: user.nome || user.name
         }
       });
     });
