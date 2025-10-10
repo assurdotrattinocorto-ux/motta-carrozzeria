@@ -36,17 +36,19 @@ if (isPostgres) {
   console.log('🐘 Configurazione PostgreSQL per Render...');
   
   // Configurazione ottimizzata per PostgreSQL su Render (free tier)
+  // Basata su soluzioni per "Connection terminated unexpectedly"
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
       rejectUnauthorized: false
     },
-    // Configurazioni ottimizzate per Render free tier
-    max: 5,                        // Massimo 5 connessioni
-    min: 1,                        // Minimo 1 connessione sempre attiva
-    idleTimeoutMillis: 0,          // Mai timeout per connessioni idle (importante per free tier)
+    // Configurazioni ottimizzate per evitare "Connection terminated unexpectedly"
+    max: 3,                        // Ridotto a 3 connessioni per free tier
+    min: 0,                        // 0 connessioni minime per evitare timeout
+    idleTimeoutMillis: 0,          // Mai timeout per connessioni idle
     connectionTimeoutMillis: 0,    // Mai timeout per nuove connessioni
-    acquireTimeoutMillis: 120000,  // 2 minuti per acquisire connessione
+    acquireTimeoutMillis: 8000,    // 8 secondi per acquisire connessione
+    createTimeoutMillis: 8000,     // 8 secondi per creare connessione
     statement_timeout: 0,          // Mai timeout per statement
     query_timeout: 0,              // Mai timeout per query
     keepAlive: true,               // Mantieni connessioni attive
@@ -54,11 +56,27 @@ if (isPostgres) {
     // Configurazioni specifiche per Render
     application_name: 'motta-carrozzeria',
     connect_timeout: 60,           // 60 secondi per connessione iniziale
+    // Configurazioni aggiuntive per stabilità
+    reapIntervalMillis: 1000,      // Controllo connessioni ogni secondo
+    createRetryIntervalMillis: 100, // Retry ogni 100ms
+  });
+
+  // Gestione eventi del pool per debugging
+  pool.on('connect', (client) => {
+    console.log('✅ Nuova connessione PostgreSQL stabilita');
+  });
+
+  pool.on('error', (err, client) => {
+    console.error('❌ Errore nel pool PostgreSQL:', err.message);
+  });
+
+  pool.on('remove', (client) => {
+    console.log('🔄 Connessione PostgreSQL rimossa dal pool');
   });
 
   db = pool;
   
-  console.log('✅ Pool PostgreSQL configurato per Render');
+  console.log('✅ Pool PostgreSQL configurato per Render con gestione errori migliorata');
 } else {
   console.log('📁 Usando SQLite come fallback...');
   const dbPath = path.join(__dirname, '..', 'database.db');
