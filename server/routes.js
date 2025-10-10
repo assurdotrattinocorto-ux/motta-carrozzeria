@@ -83,7 +83,7 @@ router.post('/logout', authenticateToken, (req, res) => {
 router.get('/profile', authenticateToken, (req, res) => {
   const db = req.app.locals.db;
   
-  db.get('SELECT id, email, role, name, created_at FROM users WHERE id = ?', [req.user.id], (err, user) => {
+  getOne(db, 'SELECT id, email, role, name, created_at FROM users WHERE id = ?', [req.user.id], (err, user) => {
     if (err) {
       return res.status(500).json({ error: 'Errore del database' });
     }
@@ -112,7 +112,7 @@ router.get('/dashboard/stats', authenticateToken, (req, res) => {
   let completed = 0;
   
   queries.forEach((query, index) => {
-    db.get(query, (err, result) => {
+    getOne(db, query, [], (err, result) => {
       if (err) {
         console.error('Query error:', err);
         return res.status(500).json({ error: 'Errore del database' });
@@ -149,7 +149,7 @@ router.get('/jobs', authenticateToken, (req, res) => {
   
   query += ' ORDER BY created_at DESC';
   
-  db.all(query, params, (err, jobs) => {
+  executeQuery(db, query, params, (err, jobs) => {
     if (err) {
       console.error('Jobs query error:', err);
       return res.status(500).json({ error: 'Errore del database' });
@@ -172,13 +172,14 @@ router.post('/jobs', authenticateToken, (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'))
   `;
   
-  db.run(query, [title, description, customer_name, priority || 'medium', assigned_to, req.user.id], function(err) {
+  runQuery(db, query, [title, description, customer_name, priority || 'medium', assigned_to, req.user.id], function(err, result) {
     if (err) {
       console.error('Job creation error:', err);
       return res.status(500).json({ error: 'Errore nella creazione del lavoro' });
     }
     
-    db.get('SELECT * FROM jobs WHERE id = ?', [this.lastID], (err, job) => {
+    const insertId = result.insertId;
+    getOne(db, 'SELECT * FROM jobs WHERE id = ?', [insertId], (err, job) => {
       if (err) {
         return res.status(500).json({ error: 'Errore nel recupero del lavoro creato' });
       }
@@ -191,7 +192,7 @@ router.post('/jobs', authenticateToken, (req, res) => {
 router.get('/customers', authenticateToken, (req, res) => {
   const db = req.app.locals.db;
   
-  db.all('SELECT * FROM customers ORDER BY name', (err, customers) => {
+  executeQuery(db, 'SELECT * FROM customers ORDER BY name', [], (err, customers) => {
     if (err) {
       console.error('Customers query error:', err);
       return res.status(500).json({ error: 'Errore del database' });
@@ -214,13 +215,14 @@ router.post('/customers', authenticateToken, (req, res) => {
     VALUES (?, ?, ?, ?, datetime('now'))
   `;
   
-  db.run(query, [name, email, phone, address], function(err) {
+  runQuery(db, query, [name, email, phone, address], function(err, result) {
     if (err) {
       console.error('Customer creation error:', err);
       return res.status(500).json({ error: 'Errore nella creazione del cliente' });
     }
     
-    db.get('SELECT * FROM customers WHERE id = ?', [this.lastID], (err, customer) => {
+    const insertId = result.insertId;
+    getOne(db, 'SELECT * FROM customers WHERE id = ?', [insertId], (err, customer) => {
       if (err) {
         return res.status(500).json({ error: 'Errore nel recupero del cliente creato' });
       }

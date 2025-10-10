@@ -46,6 +46,11 @@ function runQuery(db, query, params = [], callback) {
     let paramIndex = 1;
     pgQuery = query.replace(/\?/g, () => `$${paramIndex++}`);
     
+    // For INSERT queries, add RETURNING id to get the inserted ID
+    if (pgQuery.toUpperCase().includes('INSERT INTO')) {
+      pgQuery += ' RETURNING id';
+    }
+    
     db.query(pgQuery, params, (err, result) => {
       if (err) return callback(err);
       // For INSERT queries, return the inserted ID if available
