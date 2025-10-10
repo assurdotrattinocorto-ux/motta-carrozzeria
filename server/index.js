@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const { Pool } = require('pg');
+// Trigger deployment with db-helpers fix
 const http = require('http');
 const socketIo = require('socket.io');
 const { initializeDatabase } = require('./db-init');
