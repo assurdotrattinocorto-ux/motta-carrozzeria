@@ -2,6 +2,9 @@ const sqlite3 = require('sqlite3').verbose();
 const { Client } = require('pg');
 const path = require('path');
 
+// Carica le variabili d'ambiente dal file .env
+require('dotenv').config();
+
 // Configurazione database
 const sqliteDbPath = path.join(__dirname, 'database.db');
 
@@ -138,6 +141,98 @@ async function migrateToPostgres() {
       )
     `);
 
+    await pgClient.query(`
+      CREATE TABLE IF NOT EXISTS spare_parts (
+        id SERIAL PRIMARY KEY,
+        job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        part_number VARCHAR(255),
+        supplier VARCHAR(255),
+        quantity INTEGER NOT NULL DEFAULT 1,
+        unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+        total_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pgClient.query(`
+      CREATE TABLE IF NOT EXISTS quotes (
+        id SERIAL PRIMARY KEY,
+        job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+        quote_number VARCHAR(255) UNIQUE NOT NULL,
+        status VARCHAR(50) DEFAULT 'draft',
+        labor_hours DECIMAL(10,2) DEFAULT 0,
+        labor_rate DECIMAL(10,2) DEFAULT 0,
+        labor_total DECIMAL(10,2) DEFAULT 0,
+        parts_total DECIMAL(10,2) DEFAULT 0,
+        subtotal DECIMAL(10,2) DEFAULT 0,
+        tax_rate DECIMAL(5,4) DEFAULT 0.22,
+        tax_amount DECIMAL(10,2) DEFAULT 0,
+        total_amount DECIMAL(10,2) DEFAULT 0,
+        notes TEXT,
+        created_by INTEGER NOT NULL REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        sent_at TIMESTAMP,
+        approved_at TIMESTAMP,
+        rejected_at TIMESTAMP
+      )
+    `);
+
+    await pgClient.query(`
+      CREATE TABLE IF NOT EXISTS quote_items (
+        id SERIAL PRIMARY KEY,
+        quote_id INTEGER NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        description TEXT NOT NULL,
+        quantity DECIMAL(10,2) NOT NULL DEFAULT 1,
+        unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+        total_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    await pgClient.query(`
+      CREATE TABLE IF NOT EXISTS invoices (
+        id SERIAL PRIMARY KEY,
+        quote_id INTEGER REFERENCES quotes(id) ON DELETE SET NULL,
+        job_id INTEGER NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+        invoice_number VARCHAR(255) UNIQUE NOT NULL,
+        invoice_date DATE NOT NULL,
+        due_date DATE NOT NULL,
+        status VARCHAR(50) DEFAULT 'draft',
+        labor_hours DECIMAL(10,2) DEFAULT 0,
+        labor_rate DECIMAL(10,2) DEFAULT 0,
+        labor_total DECIMAL(10,2) DEFAULT 0,
+        parts_total DECIMAL(10,2) DEFAULT 0,
+        subtotal DECIMAL(10,2) DEFAULT 0,
+        tax_rate DECIMAL(5,4) DEFAULT 0.22,
+        tax_amount DECIMAL(10,2) DEFAULT 0,
+        total_amount DECIMAL(10,2) DEFAULT 0,
+        notes TEXT,
+        payment_method VARCHAR(100) DEFAULT 'bank_transfer',
+        created_by INTEGER NOT NULL REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        sent_at TIMESTAMP,
+        paid_at TIMESTAMP
+      )
+    `);
+
+    await pgClient.query(`
+      CREATE TABLE IF NOT EXISTS invoice_items (
+        id SERIAL PRIMARY KEY,
+        invoice_id INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+        type VARCHAR(50) NOT NULL,
+        description TEXT NOT NULL,
+        quantity DECIMAL(10,2) NOT NULL DEFAULT 1,
+        unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+        total_price DECIMAL(10,2) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('✅ Tabelle create con successo');
 
     // 2. Migrare i dati
@@ -248,6 +343,105 @@ async function migrateToPostgres() {
       );
     }
     console.log(`✅ Migrati ${archivedJobs.length} lavori archiviati`);
+
+    // Migrazione spare_parts (se esistono)
+    const spareParts = await new Promise((resolve, reject) => {
+      sqliteDb.all('SELECT * FROM spare_parts', (err, rows) => {
+        if (err && !err.message.includes('no such table')) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    for (const sparePart of spareParts) {
+      await pgClient.query(
+        `INSERT INTO spare_parts (id, job_id, name, part_number, supplier, quantity, unit_price, total_price, created_at, updated_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT DO NOTHING`,
+        [sparePart.id, sparePart.job_id, sparePart.name, sparePart.part_number, sparePart.supplier,
+         sparePart.quantity, sparePart.unit_price, sparePart.total_price, sparePart.created_at, sparePart.updated_at]
+      );
+    }
+    console.log(`✅ Migrati ${spareParts.length} ricambi`);
+
+    // Migrazione quotes (se esistono)
+    const quotes = await new Promise((resolve, reject) => {
+      sqliteDb.all('SELECT * FROM quotes', (err, rows) => {
+        if (err && !err.message.includes('no such table')) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    for (const quote of quotes) {
+      await pgClient.query(
+        `INSERT INTO quotes (id, job_id, quote_number, status, labor_hours, labor_rate, labor_total, 
+         parts_total, subtotal, tax_rate, tax_amount, total_amount, notes, created_by, created_at, 
+         updated_at, sent_at, approved_at, rejected_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) ON CONFLICT DO NOTHING`,
+        [quote.id, quote.job_id, quote.quote_number, quote.status, quote.labor_hours, quote.labor_rate,
+         quote.labor_total, quote.parts_total, quote.subtotal, quote.tax_rate, quote.tax_amount,
+         quote.total_amount, quote.notes, quote.created_by, quote.created_at, quote.updated_at,
+         quote.sent_at, quote.approved_at, quote.rejected_at]
+      );
+    }
+    console.log(`✅ Migrati ${quotes.length} preventivi`);
+
+    // Migrazione quote_items (se esistono)
+    const quoteItems = await new Promise((resolve, reject) => {
+      sqliteDb.all('SELECT * FROM quote_items', (err, rows) => {
+        if (err && !err.message.includes('no such table')) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    for (const quoteItem of quoteItems) {
+      await pgClient.query(
+        `INSERT INTO quote_items (id, quote_id, type, description, quantity, unit_price, total_price, created_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING`,
+        [quoteItem.id, quoteItem.quote_id, quoteItem.type, quoteItem.description, quoteItem.quantity,
+         quoteItem.unit_price, quoteItem.total_price, quoteItem.created_at]
+      );
+    }
+    console.log(`✅ Migrati ${quoteItems.length} elementi preventivi`);
+
+    // Migrazione invoices (se esistono)
+    const invoices = await new Promise((resolve, reject) => {
+      sqliteDb.all('SELECT * FROM invoices', (err, rows) => {
+        if (err && !err.message.includes('no such table')) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    for (const invoice of invoices) {
+      await pgClient.query(
+        `INSERT INTO invoices (id, quote_id, job_id, invoice_number, invoice_date, due_date, status, 
+         labor_hours, labor_rate, labor_total, parts_total, subtotal, tax_rate, tax_amount, 
+         total_amount, notes, payment_method, created_by, created_at, updated_at, sent_at, paid_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) ON CONFLICT DO NOTHING`,
+        [invoice.id, invoice.quote_id, invoice.job_id, invoice.invoice_number, invoice.invoice_date,
+         invoice.due_date, invoice.status, invoice.labor_hours, invoice.labor_rate, invoice.labor_total,
+         invoice.parts_total, invoice.subtotal, invoice.tax_rate, invoice.tax_amount, invoice.total_amount,
+         invoice.notes, invoice.payment_method, invoice.created_by, invoice.created_at, invoice.updated_at,
+         invoice.sent_at, invoice.paid_at]
+      );
+    }
+    console.log(`✅ Migrati ${invoices.length} fatture`);
+
+    // Migrazione invoice_items (se esistono)
+    const invoiceItems = await new Promise((resolve, reject) => {
+      sqliteDb.all('SELECT * FROM invoice_items', (err, rows) => {
+        if (err && !err.message.includes('no such table')) reject(err);
+        else resolve(rows || []);
+      });
+    });
+
+    for (const invoiceItem of invoiceItems) {
+      await pgClient.query(
+        `INSERT INTO invoice_items (id, invoice_id, type, description, quantity, unit_price, total_price, created_at) 
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT DO NOTHING`,
+        [invoiceItem.id, invoiceItem.invoice_id, invoiceItem.type, invoiceItem.description, invoiceItem.quantity,
+         invoiceItem.unit_price, invoiceItem.total_price, invoiceItem.created_at]
+      );
+    }
+    console.log(`✅ Migrati ${invoiceItems.length} elementi fatture`);
 
     // Aggiornare le sequenze PostgreSQL
     console.log('🔄 Aggiornamento sequenze...');
