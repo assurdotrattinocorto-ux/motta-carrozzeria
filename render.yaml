@@ -3,8 +3,8 @@ services:
     name: motta-carrozzeria
     env: node
     plan: free
-    buildCommand: npm install && cd client && npm install && npm run build
-    startCommand: node server/index.js
+    buildCommand: npm install && cd client && npm install && npm run build && cd .. && cp -r server/* .
+    startCommand: node index.js
     envVars:
       - key: NODE_ENV
         value: production
