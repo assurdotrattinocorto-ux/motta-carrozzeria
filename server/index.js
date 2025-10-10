@@ -33,50 +33,59 @@ const isPostgres = process.env.DATABASE_URL && process.env.DATABASE_URL.includes
 let db;
 
 if (isPostgres) {
-  console.log('🐘 Configurazione PostgreSQL per Render...');
+  console.log('🐘 Using PostgreSQL database with enhanced connection pool');
   
-  // Configurazione ottimizzata per PostgreSQL su Render (free tier)
-  // Basata su soluzioni per "Connection terminated unexpectedly"
+  // Enhanced PostgreSQL configuration for Render with SSL fixes
+  // Based on solutions for "Connection terminated unexpectedly" errors
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: {
-      rejectUnauthorized: false
-    },
-    // Configurazioni ottimizzate per evitare "Connection terminated unexpectedly"
-    max: 3,                        // Ridotto a 3 connessioni per free tier
-    min: 0,                        // 0 connessioni minime per evitare timeout
-    idleTimeoutMillis: 0,          // Mai timeout per connessioni idle
-    connectionTimeoutMillis: 0,    // Mai timeout per nuove connessioni
-    acquireTimeoutMillis: 8000,    // 8 secondi per acquisire connessione
-    createTimeoutMillis: 8000,     // 8 secondi per creare connessione
-    statement_timeout: 0,          // Mai timeout per statement
-    query_timeout: 0,              // Mai timeout per query
-    keepAlive: true,               // Mantieni connessioni attive
-    keepAliveInitialDelayMillis: 10000, // Delay iniziale keep-alive
-    // Configurazioni specifiche per Render
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    // Optimized settings for Render free tier to prevent connection drops
+    max: 2,                        // Further reduced to 2 connections for stability
+    min: 0,                        // No minimum connections to prevent idle timeouts
+    idleTimeoutMillis: 30000,      // 30 seconds idle timeout (not 0 to prevent resource leaks)
+    connectionTimeoutMillis: 10000, // 10 seconds connection timeout
+    acquireTimeoutMillis: 10000,   // 10 seconds to acquire connection
+    createTimeoutMillis: 10000,    // 10 seconds to create connection
+    statement_timeout: 30000,      // 30 seconds statement timeout
+    query_timeout: 30000,          // 30 seconds query timeout
+    keepAlive: true,               // Keep connections alive
+    keepAliveInitialDelayMillis: 0, // No initial delay for keep-alive
+    // Render-specific configurations
     application_name: 'motta-carrozzeria',
-    connect_timeout: 60,           // 60 secondi per connessione iniziale
-    // Configurazioni aggiuntive per stabilità
-    reapIntervalMillis: 1000,      // Controllo connessioni ogni secondo
-    createRetryIntervalMillis: 100, // Retry ogni 100ms
+    // Additional stability configurations
+    reapIntervalMillis: 5000,      // Check connections every 5 seconds
+    createRetryIntervalMillis: 200, // Retry every 200ms
   });
 
-  // Gestione eventi del pool per debugging
+  // Enhanced event handlers for better debugging
   pool.on('connect', (client) => {
-    console.log('✅ Nuova connessione PostgreSQL stabilita');
+    console.log('✅ New PostgreSQL connection established');
+    // Set client encoding and timezone
+    client.query('SET client_encoding TO UTF8');
+    client.query('SET timezone TO UTC');
   });
 
   pool.on('error', (err, client) => {
-    console.error('❌ Errore nel pool PostgreSQL:', err.message);
+    console.error('❌ PostgreSQL pool error:', err.message);
+    console.error('Error details:', err);
   });
 
   pool.on('remove', (client) => {
-    console.log('🔄 Connessione PostgreSQL rimossa dal pool');
+    console.log('🔄 PostgreSQL connection removed from pool');
+  });
+
+  pool.on('acquire', (client) => {
+    console.log('🔗 PostgreSQL connection acquired from pool');
+  });
+
+  pool.on('release', (client) => {
+    console.log('🔓 PostgreSQL connection released back to pool');
   });
 
   db = pool;
   
-  console.log('✅ Pool PostgreSQL configurato per Render con gestione errori migliorata');
+  console.log('✅ Enhanced PostgreSQL pool configured for Render with improved SSL handling');
 } else {
   console.log('📁 Usando SQLite come fallback...');
   const dbPath = path.join(__dirname, '..', 'database.db');
