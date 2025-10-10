@@ -198,11 +198,22 @@ function getJobWithAssignments(jobId, callback) {
   });
 }
 
-// Initialize database tables
+// Initialize database tables with retry mechanism
 async function initializeTables() {
   if (isPostgres) {
-    // PostgreSQL table creation
-    try {
+    // PostgreSQL table creation with retry logic
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        console.log(`🔄 Attempting to initialize PostgreSQL tables (attempt ${retryCount + 1}/${maxRetries})`);
+        
+        // Test connection first
+        await db.query('SELECT 1');
+        console.log('✅ PostgreSQL connection verified');
+        
+        // If we get here, connection is good, proceed with table creation
       // Users table
       await db.query(`CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -290,10 +301,136 @@ async function initializeTables() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
 
+      // Spare parts table for PostgreSQL
+      await db.query(`CREATE TABLE IF NOT EXISTS spare_parts (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        code VARCHAR(100) UNIQUE,
+        description TEXT,
+        price DECIMAL(10,2),
+        quantity_in_stock INTEGER DEFAULT 0,
+        supplier VARCHAR(255),
+        category VARCHAR(100),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Quotes table for PostgreSQL
+      await db.query(`CREATE TABLE IF NOT EXISTS quotes (
+        id SERIAL PRIMARY KEY,
+        quote_number VARCHAR(50) UNIQUE NOT NULL,
+        customer_name VARCHAR(255) NOT NULL,
+        customer_email VARCHAR(255),
+        customer_phone VARCHAR(50),
+        vehicle_info TEXT,
+        description TEXT,
+        total_amount DECIMAL(10,2) DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'draft',
+        valid_until DATE,
+        created_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Quote items table for PostgreSQL
+      await db.query(`CREATE TABLE IF NOT EXISTS quote_items (
+        id SERIAL PRIMARY KEY,
+        quote_id INTEGER REFERENCES quotes(id) ON DELETE CASCADE,
+        item_type VARCHAR(50) NOT NULL,
+        description TEXT NOT NULL,
+        quantity INTEGER DEFAULT 1,
+        unit_price DECIMAL(10,2) NOT NULL,
+        total_price DECIMAL(10,2) NOT NULL,
+        spare_part_id INTEGER REFERENCES spare_parts(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Invoices table for PostgreSQL
+      await db.query(`CREATE TABLE IF NOT EXISTS invoices (
+        id SERIAL PRIMARY KEY,
+        invoice_number VARCHAR(50) UNIQUE NOT NULL,
+        customer_name VARCHAR(255) NOT NULL,
+        customer_email VARCHAR(255),
+        customer_phone VARCHAR(50),
+        customer_address TEXT,
+        vehicle_info TEXT,
+        description TEXT,
+        subtotal DECIMAL(10,2) DEFAULT 0,
+        tax_rate DECIMAL(5,2) DEFAULT 22.00,
+        tax_amount DECIMAL(10,2) DEFAULT 0,
+        total_amount DECIMAL(10,2) DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'draft',
+        due_date DATE,
+        paid_date DATE,
+        quote_id INTEGER REFERENCES quotes(id),
+        job_id INTEGER REFERENCES jobs(id),
+        created_by INTEGER REFERENCES users(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Invoice items table for PostgreSQL
+      await db.query(`CREATE TABLE IF NOT EXISTS invoice_items (
+        id SERIAL PRIMARY KEY,
+        invoice_id INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
+        item_type VARCHAR(50) NOT NULL,
+        description TEXT NOT NULL,
+        quantity INTEGER DEFAULT 1,
+        unit_price DECIMAL(10,2) NOT NULL,
+        total_price DECIMAL(10,2) NOT NULL,
+        spare_part_id INTEGER REFERENCES spare_parts(id),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Job assignments table for PostgreSQL
+      await db.query(`CREATE TABLE IF NOT EXISTS job_assignments (
+        id SERIAL PRIMARY KEY,
+        job_id INTEGER REFERENCES jobs(id) ON DELETE CASCADE,
+        employee_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        assigned_by INTEGER REFERENCES users(id),
+        UNIQUE(job_id, employee_id)
+      )`);
+
+      // Archived jobs table for PostgreSQL
+      await db.query(`CREATE TABLE IF NOT EXISTS archived_jobs (
+        id SERIAL PRIMARY KEY,
+        original_job_id INTEGER NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        customer_name VARCHAR(255) NOT NULL,
+        customer_phone VARCHAR(50),
+        status VARCHAR(50) DEFAULT 'completed',
+        priority VARCHAR(50) DEFAULT 'medium',
+        estimated_hours DECIMAL(5,2),
+        actual_hours DECIMAL(5,2) DEFAULT 0,
+        created_by INTEGER,
+        created_by_name VARCHAR(255),
+        created_at TIMESTAMP,
+        completed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        due_date DATE,
+        notes TEXT,
+        assigned_employees TEXT
+      )`);
+
       console.log('✅ PostgreSQL tables initialized');
+      break; // Exit retry loop on success
+      
     } catch (error) {
-      console.error('❌ Error initializing PostgreSQL tables:', error);
+      retryCount++;
+      console.error(`❌ Error initializing PostgreSQL tables (attempt ${retryCount}/${maxRetries}):`, error.message);
+      
+      if (retryCount >= maxRetries) {
+        console.error('❌ Failed to initialize PostgreSQL tables after all retry attempts');
+        throw error;
+      }
+      
+      // Wait before retrying (exponential backoff)
+      const waitTime = Math.pow(2, retryCount) * 1000; // 2s, 4s, 8s
+      console.log(`⏳ Waiting ${waitTime/1000}s before retry...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
+  } // End of retry while loop
   } else {
     // SQLite table creation (existing code)
     db.serialize(() => {
